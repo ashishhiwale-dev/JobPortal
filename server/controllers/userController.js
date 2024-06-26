@@ -2,11 +2,10 @@ const JWT = require('jsonwebtoken');
 const { hashPassword, comparePassword } = require('../helpers/authHelper');
 const userModel = require('../models/userModel');
 
+
 const registerController = async (req, res) => {
     try {
-        const { phoneNumber, role } = req.body;
-
-        // Validation
+        const { phoneNumber, role, otp } = req.body;
         if (!phoneNumber) {
             return res.status(400).send({
                 success: false,
@@ -14,25 +13,33 @@ const registerController = async (req, res) => {
             });
         }
 
-        if (!role) {
+
+        if (!otp) {
             return res.status(400).send({
                 success: false,
-                message: 'Role is required'
+                message: 'OTP is required'
             });
         }
 
-        // Existing User
         const existingUser = await userModel.findOne({ phoneNumber });
-        if (existingUser) {
-            return res.status(500).send({
+        if (!existingUser) {
+            return res.status(404).send({
                 success: false,
-                message: 'User Already Registered with this Phone Number'
+                message: 'User not found, please send OTP first'
             });
         }
 
-        // Save User
-        const user = new userModel({ phoneNumber, role });
-        await user.save();
+        if (existingUser.otp !== otp) {
+            return res.status(400).send({
+                success: false,
+                message: 'Invalid OTP'
+            });
+        }
+
+   
+        existingUser.otp = undefined;
+        await existingUser.save();
+
         return res.status(201).send({
             success: true,
             message: 'Registration Successful'
@@ -48,20 +55,31 @@ const registerController = async (req, res) => {
 };
 
 
+
 const passwordController = async (req, res) => {
     try {
-        const { phoneNumber, password } = req.body;
+        const { password } = req.body;
 
         // Validation
-        if (!phoneNumber || !password) {
+        if (!password) {
             return res.status(400).send({
                 success: false,
-                message: 'Phone Number and Password are required'
+                message: 'Password is required'
             });
         }
 
-        // Find User
-        const user = await userModel.findOne({ phoneNumber });
+        // Additional Validation (e.g., length, complexity)
+        if (password.length < 8) {
+            return res.status(400).send({
+                success: false,
+                message: 'Password must be at least 8 characters long'
+            });
+        }
+
+        // Assuming `user` is fetched from the database using a user ID
+        const userId = req.user.id;  // Assuming user ID is stored in the request object
+        const user = await User.findById(userId);  // Replace User with the actual User model
+
         if (!user) {
             return res.status(404).send({
                 success: false,
@@ -82,14 +100,15 @@ const passwordController = async (req, res) => {
             message: 'Password Saved'
         });
     } catch (error) {
-        console.log(error);
+        console.error('Error in passwordController:', error);
         return res.status(500).send({
             success: false,
             message: 'Error in Password API',
-            error,
+            error: error.message,
         });
     }
 };
+
 
 const loginController = async (req, res) => {
     try {

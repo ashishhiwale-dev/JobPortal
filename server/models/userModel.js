@@ -7,6 +7,9 @@ const userSchema = new mongoose.Schema({
         unique : 'true',
         trim : 'true'
     },
+    otp: {
+        type: String,
+    },
     role: {
         type: String,
         required: true,
